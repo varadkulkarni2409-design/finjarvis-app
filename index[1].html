@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="theme-color" content="#060d1a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FinJarvis"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>FinJarvis — Stark Edition</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#060d1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:4px}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,180,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+@keyframes arcPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,210,255,.7),0 0 12px rgba(0,210,255,.4)}50%{box-shadow:0 0 0 8px rgba(0,210,255,.0),0 0 24px rgba(0,210,255,.6)}}
+@keyframes arcSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes scanLine{0%{top:-10%}100%{top:110%}}
+@keyframes wave1{0%,100%{height:4px}50%{height:22px}}
+@keyframes wave2{0%,100%{height:8px}50%{height:30px}}
+@keyframes wave3{0%,100%{height:5px}50%{height:28px}}
+@keyframes wave4{0%,100%{height:10px}50%{height:20px}}
+@keyframes wave5{0%,100%{height:6px}50%{height:26px}}
+#waveform{display:flex;align-items:center;gap:3px;height:36px;padding:0 4px}
+.wbar{width:4px;border-radius:2px;background:#00d4ff;min-height:4px;transition:background .3s;opacity:.3}
+.wbar.speaking{opacity:1}
+.wbar.speaking:nth-child(1){animation:wave1 .6s ease-in-out infinite}
+.wbar.speaking:nth-child(2){animation:wave2 .5s ease-in-out .07s infinite}
+.wbar.speaking:nth-child(3){animation:wave3 .7s ease-in-out .14s infinite}
+.wbar.speaking:nth-child(4){animation:wave4 .55s ease-in-out .21s infinite}
+.wbar.speaking:nth-child(5){animation:wave5 .65s ease-in-out .28s infinite}
+.wbar.speaking:nth-child(6){animation:wave1 .6s ease-in-out .35s infinite}
+.wbar.speaking:nth-child(7){animation:wave3 .5s ease-in-out .10s infinite}
+.wbar.speaking:nth-child(8){animation:wave2 .7s ease-in-out .18s infinite}
+.topbar{background:linear-gradient(180deg,#0a1628 0%,#0d1f38 100%);border-bottom:1px solid #1e3a5f;padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;position:relative;z-index:10;box-shadow:0 2px 20px rgba(0,100,255,.15);}
+.arc-reactor{width:38px;height:38px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 40% 40%,#00e0ff,#0050c8 60%,#001a3a);animation:arcPulse 2.5s ease-in-out infinite;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;}
+.arc-reactor::before{content:'';position:absolute;width:70%;height:70%;border-radius:50%;border:1.5px solid rgba(0,220,255,.5);animation:arcSpin 3s linear infinite;border-top-color:transparent;border-left-color:transparent;}
+.arc-reactor::after{content:'';position:absolute;width:40%;height:40%;border-radius:50%;background:radial-gradient(circle,#fff 0%,#00d4ff 60%,transparent 100%);box-shadow:0 0 10px #00d4ff,0 0 20px #0088ff;}
+.arc-scan{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(0,220,255,.8),transparent);animation:scanLine 2s linear infinite;pointer-events:none;}
+.jarvis-title{font-weight:900;font-size:16px;letter-spacing:.12em;background:linear-gradient(90deg,#00d4ff,#4fc3f7,#00d4ff);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:gs 3s ease infinite;}
+@keyframes gs{0%,100%{background-position:0%}50%{background-position:200%}}
+.jarvis-sub{font-size:11px;color:#4a90a4;letter-spacing:.05em;font-weight:500}
+.status-badge{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.04em;border:1px solid #1e3a5f;color:#4a90a4;background:rgba(0,100,200,.08);transition:all .3s;}
+.status-badge.speaking{border-color:#00d4ff;color:#00d4ff;background:rgba(0,212,255,.1);}
+.status-badge.listening{border-color:#ef4444;color:#ef4444;background:rgba(239,68,68,.1);}
+.dot-led{width:6px;height:6px;border-radius:50%;background:currentColor;}
+@keyframes ledPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.status-badge.speaking .dot-led,.status-badge.listening .dot-led{animation:ledPulse .8s ease-in-out infinite}
+@keyframes listenGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+#lbanner{display:none;align-items:center;gap:10px;background:linear-gradient(270deg,#7f1d1d,#ef4444,#b91c1c);background-size:300% 300%;animation:listenGrad 2s ease infinite;padding:7px 18px;font-size:13px;font-weight:600;color:#fff;border-bottom:1px solid rgba(255,80,80,.3);flex-shrink:0;position:relative;z-index:9;}
+#lbanner.on{display:flex;}
+#messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px;position:relative;z-index:1;}
+.ub{background:linear-gradient(135deg,#1e40af,#2563eb);color:#fff;border-radius:18px 18px 4px 18px;padding:11px 16px;max-width:72%;font-size:14px;line-height:1.5;word-break:break-word;border:1px solid #3b82f6;box-shadow:0 2px 12px rgba(59,130,246,.25);}
+.bb{background:linear-gradient(135deg,#0a1628 0%,#0f2340 100%);color:#cbd5e1;border:1px solid #1e3a5f;border-radius:18px 18px 18px 4px;padding:14px 18px;max-width:84%;font-size:14px;line-height:1.6;word-break:break-word;box-shadow:0 2px 16px rgba(0,100,255,.12),inset 0 1px 0 rgba(255,255,255,.04);position:relative;overflow:hidden;}
+.bb::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,.4),transparent);}
+@keyframes blink{0%,80%,100%{opacity:.15}40%{opacity:1}}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#00d4ff;animation:blink 1.2s infinite both;margin:0 2px}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes pr{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+.mpulse::before,.mpulse::after{content:'';position:absolute;inset:0;border-radius:50%;background:#ef4444;animation:pr 1s ease-out infinite;}
+.mpulse::after{animation-delay:.4s;}
+#inputBar{border-top:1px solid #1e3a5f;background:linear-gradient(180deg,#0a1628,#060d1a);padding:12px 16px;display:flex;align-items:flex-end;gap:8px;flex-shrink:0;position:relative;z-index:10;box-shadow:0 -2px 20px rgba(0,50,150,.2);}
+#userInput{flex:1;background:#0d1f38;border:1px solid #1e3a5f;color:#cbd5e1;border-radius:12px;padding:11px 16px;font-size:14px;font-family:inherit;resize:none;outline:none;min-height:44px;max-height:120px;line-height:1.4;transition:border-color .3s,box-shadow .3s;}
+#userInput::placeholder{color:#2d5070}
+#userInput:focus{border-color:#00a8cc;box-shadow:0 0 0 2px rgba(0,168,204,.15);}
+.ibtn{border:none;border-radius:12px;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;transition:opacity .15s,transform .1s,box-shadow .2s;}
+.ibtn:hover{opacity:.85}.ibtn:active{transform:scale(.9)}
+.ibtn:disabled{opacity:.25;cursor:not-allowed;pointer-events:none;}
+#sendBtn{background:linear-gradient(135deg,#0369a1,#0ea5e9);color:#fff;box-shadow:0 2px 12px rgba(14,165,233,.4);}
+#sendBtn:hover{box-shadow:0 4px 20px rgba(14,165,233,.6);}
+#micBtn{background:#0d1f38;border:1.5px solid #1e3a5f;color:#4a90a4;}
+#micBtn.active{background:linear-gradient(135deg,#991b1b,#ef4444);border-color:#ef4444;color:#fff;box-shadow:0 2px 12px rgba(239,68,68,.5);}
+#voiceOut{background:transparent;border:1.5px solid #1e3a5f;color:#2d5070;border-radius:8px;width:36px;height:36px;transition:all .3s;}
+#voiceOut.on{border-color:#00d4ff;color:#00d4ff;box-shadow:0 0 8px rgba(0,212,255,.3);}
+#sidebar{width:200px;flex-shrink:0;background:linear-gradient(180deg,#080f1e 0%,#060d1a 100%);border-right:1px solid #1e3a5f;overflow-y:auto;display:flex;flex-direction:column;padding:14px 11px;gap:12px;position:relative;z-index:1;}
+.sbl{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2d5070;margin-bottom:5px}
+.sb-card{background:linear-gradient(135deg,#0369a1,#0c4a6e);border-radius:12px;padding:12px;position:relative;overflow:hidden;}
+.sb-card::after{content:'';position:absolute;top:-30px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.04);}
+.qb{display:block;width:100%;text-align:left;font-size:12px;border:none;cursor:pointer;background:#0d1f38;color:#7fb3cc;border:1px solid #1e3a5f;border-radius:8px;padding:7px 10px;margin-bottom:4px;transition:all .2s;letter-spacing:.02em;}
+.qb:hover{background:#0f2a44;border-color:#2d6a9f;color:#9ed4f0;}
+.stat-box{flex:1;text-align:center;background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:8px 10px;}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.pb{background:#0d1f38;border-radius:4px;height:5px;flex:1;overflow:hidden;border:1px solid #1e3a5f;}
+.pf{height:100%;border-radius:4px;transition:width .6s ease;}
+.layout{flex:1;display:flex;overflow:hidden}
+#chat{flex:1;display:flex;flex-direction:column;overflow:hidden}
+@media(max-width:560px){#sidebar{display:none}}
+.jc-cyan{color:#00d4ff}
+.jc-dim{color:#4a7a9b;font-size:12px}
+
+/* ── CLAP STANDBY SCREEN ── */
+#standby{position:fixed;inset:0;z-index:100;background:#060d1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .8s;text-align:center;padding:20px}
+#standby.off{opacity:0;pointer-events:none}
+#standby .big-reactor{width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#00e0ff,#0050c8 60%,#001a3a);animation:arcPulse 2.5s ease-in-out infinite}
+#armBtn{background:linear-gradient(135deg,#0369a1,#0ea5e9);color:#fff;border:none;border-radius:10px;padding:11px 24px;font-size:13px;font-weight:700;letter-spacing:.1em;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- ══ CLAP STANDBY ══ -->
+<div id="standby">
+  <div class="big-reactor"></div>
+  <div class="jarvis-title" style="font-size:22px">J.A.R.V.I.S</div>
+  <div id="standbyMsg" class="jarvis-sub">SYSTEM ASLEEP</div>
+  <button id="armBtn" onclick="armClap()">TAP ONCE TO ARM 👏</button>
+  <div style="font-size:11px;color:#2d5070;cursor:pointer" onclick="openJarvis()">or skip</div>
+</div>
+
+<!-- ══ TOPBAR ══ -->
+<div class="topbar">
+  <div class="arc-reactor" onclick="toggleTTS()" title="Click to toggle Jarvis voice">
+    <div class="arc-scan"></div>
+  </div>
+  <div>
+    <div class="jarvis-title">J.A.R.V.I.S</div>
+    <div class="jarvis-sub">FINANCIAL INTELLIGENCE SYSTEM</div>
+  </div>
+  <div id="waveform">
+    <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+    <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+    <div class="wbar"></div><div class="wbar"></div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <div id="statusBadge" class="status-badge">
+      <div class="dot-led"></div>
+      <span id="statusText">STANDBY</span>
+    </div>
+    <button id="voiceOut" class="ibtn on" onclick="toggleTTS()" title="Toggle Jarvis voice">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- ══ LISTENING BANNER ══ -->
+<div id="lbanner">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+    <line x1="12" y1="19" x2="12" y2="23"/>
+    <line x1="8" y1="23" x2="16" y2="23"/>
+  </svg>
+  <span style="letter-spacing:.05em">VOICE INPUT ACTIVE — <span id="liveText" style="font-weight:400;opacity:.85;font-style:italic"></span></span>
+  <button onclick="stopMic()" style="margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;letter-spacing:.04em">STOP</button>
+</div>
+
+<div class="layout">
+
+  <!-- ══ SIDEBAR ══ -->
+  <div id="sidebar">
+    <div>
+      <div class="sbl">Total Expenditure</div>
+      <div class="sb-card">
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:3px;letter-spacing:.06em">ALL TIME</div>
+        <div id="sb-total" style="font-size:24px;font-weight:900;color:#fff;letter-spacing:.02em">₹0</div>
+        <div id="sb-count" style="font-size:11px;color:rgba(255,255,255,.5);margin-top:3px">0 transactions</div>
+      </div>
+    </div>
+    <div>
+      <div class="sbl">Category Analysis</div>
+      <div id="sb-cats" style="font-size:12px;color:#2d5070;font-style:italic">No data available</div>
+    </div>
+    <div style="margin-top:auto">
+      <div class="sbl">⚡ Quick Commands</div>
+      <button class="qb" onclick="qi('pizza 500')">🍕 pizza 500</button>
+      <button class="qb" onclick="qi('uber 150')">🚖 uber 150</button>
+      <button class="qb" onclick="qi('netflix 499')">🎬 netflix 499</button>
+      <button class="qb" onclick="qi('rent 12000')">🏠 rent 12000</button>
+      <button class="qb" onclick="qi('medicine 350')">💊 medicine 350</button>
+      <button class="qb" onclick="qi('grocery 800')">🛒 grocery 800</button>
+      <div class="sbl" style="margin-top:10px">📊 Reports</div>
+      <button class="qb" onclick="qi('show monthly summary')">📊 Monthly Report</button>
+      <button class="qb" onclick="qi('list all expenses')">📋 All Transactions</button>
+      <button class="qb" onclick="qi('predict next month')">🔮 Forecast</button>
+      <button class="qb" onclick="qi('How can I save money')">💡 Savings Analysis</button>
+      <button class="qb" onclick="qi('Can I afford a 50000 laptop')">💻 Afford 50K?</button>
+    </div>
+  </div>
+
+  <!-- ══ CHAT ══ -->
+  <div id="chat">
+    <div id="messages"></div>
+    <div id="inputBar">
+      <button id="micBtn" class="ibtn" onclick="toggleMic()" title="Activate voice input">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+      <textarea id="userInput" rows="1"
+        placeholder="🎙 Speak a command or type — e.g.  pizza 500  ·  show monthly summary  ·  afford 50000 laptop"
+        onkeydown="onKey(event)" oninput="grow(this)"></textarea>
+      <button id="sendBtn" class="ibtn" onclick="sendMsg()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════ SAFE STORAGE ════════
+var _hasLS = false;
+try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); _hasLS = true; } catch(e) {}
+function dbLoad(){ if(!_hasLS) return []; try{ return JSON.parse(localStorage.getItem('fj5')||'[]'); }catch(e){return [];} }
+function dbSave(a){ if(!_hasLS) return; try{ localStorage.setItem('fj5',JSON.stringify(a)); }catch(e){} }
+var DB = dbLoad();
+
+// ════════ CATEGORIES ════════
+var COLORS={Food:'#f97316',Travel:'#06b6d4',Shopping:'#8b5cf6',Entertainment:'#ec4899',
+  Bills:'#f59e0b',Healthcare:'#10b981',Education:'#3b82f6',Investment:'#14b8a6',
+  Salary:'#22c55e',Utilities:'#84cc16',Rent:'#f43f5e',Insurance:'#d946ef',Other:'#94a3b8'};
+var EMOJI={Food:'🍕',Travel:'🚖',Shopping:'🛍️',Entertainment:'🎬',Bills:'📄',
+  Healthcare:'💊',Education:'📚',Investment:'📈',Salary:'💰',Utilities:'⚡',Rent:'🏠',Insurance:'🛡️',Other:'📦'};
+var KWMAP={
+  Food:['pizza','burger','zomato','swiggy','restaurant','cafe','coffee','food','meal','lunch','dinner',
+        'breakfast','snack','biryani','sushi','noodle','sandwich','tea','juice','dominos','kfc','mcdonalds','chai','lassi','maggi','bread','milk','grocery','groceries'],
+  Travel:['uber','ola','taxi','cab','metro','bus','auto','flight','train','petrol','fuel','toll','parking','rapido','rickshaw','rapido','travel'],
+  Shopping:['amazon','flipkart','myntra','meesho','ajio','shop','shopping','cloth','dress','shoes','watch','nykaa','zepto','blinkit','purchase','clothes'],
+  Entertainment:['netflix','prime','hotstar','spotify','movie','concert','gaming','game','theatre','disney','apple tv','jiocinema'],
+  Bills:['electricity','internet','wifi','cable','recharge','bill','bills','mobile','phone bill','broadband'],
+  Healthcare:['hospital','medicine','doctor','pharmacy','clinic','healthcare','dental','tablet','medic','medicine','chemist','health'],
+  Education:['school','college','tuition','course','books','education','udemy','coursera','fees','classes','exam'],
+  Investment:['mutual fund','sip','stock','investment','invest','nps','ppf','zerodha','groww','shares','crypto'],
+  Salary:['salary','income','paycheck','wages','stipend','credited','got paid'],
+  Utilities:['gas','utility','utilities','water bill','lpg'],
+  Rent:['rent','house rent','pg','hostel','room rent','accommodation'],
+  Insurance:['insurance','policy','premium','lic']
+};
+function autoCat(text){
+  var t=text.toLowerCase();
+  var cats=Object.keys(KWMAP);
+  for(var i=0;i<cats.length;i++){
+    var kws=KWMAP[cats[i]];
+    for(var j=0;j<kws.length;j++) if(t.indexOf(kws[j])!==-1) return cats[i];
+  }
+  return 'Other';
+}
+
+// ════════ JARVIS VOICE ════════
+var ttsOn = true;
+var isSpeaking = false;
+var JARVIS_PREFIXES = ['Certainly, sir. ','Right away. ','Of course, sir. ','Analysis complete. ','Noted, sir. ','As you wish. ','Understood. ','Processing complete. ','My pleasure, sir. ','Consider it done. '];
+function getPrefix(){ return JARVIS_PREFIXES[Math.floor(Math.random()*JARVIS_PREFIXES.length)]; }
+
+function setStatus(mode, text){
+  var badge = document.getElementById('statusBadge');
+  var label = document.getElementById('statusText');
+  badge.className = 'status-badge' + (mode?' '+mode:'');
+  label.textContent = text || 'STANDBY';
+}
+function setWave(active){
+  var bars = document.querySelectorAll('.wbar');
+  bars.forEach(function(b){ active ? b.classList.add('speaking') : b.classList.remove('speaking'); });
+}
+
+function speak(raw, forcePrefix){
+  if(!ttsOn || !window.speechSynthesis) return;
+  try{
+    window.speechSynthesis.cancel();
+    var plain = raw.replace(/<[^>]*>/g,' ').replace(/₹/g,' rupees ').replace(/\s{2,}/g,' ').trim();
+    if(!plain) return;
+    var prefix = (forcePrefix !== false) ? getPrefix() : '';
+    var utt = new SpeechSynthesisUtterance(prefix + plain);
+    utt.lang = 'en-GB';
+    utt.pitch = 0.82;
+    utt.rate  = 0.90;
+    utt.volume = 1.0;
+    var voices = window.speechSynthesis.getVoices();
+    var prefer = null;
+    var targets = ['Google UK English Male','Daniel','Microsoft George','Microsoft Ravi','Google UK English Female','en-GB'];
+    for(var t=0; t<targets.length && !prefer; t++){
+      prefer = voices.find(function(v){ return v.name.indexOf(targets[t])!==-1 || v.lang===targets[t]; });
+    }
+    if(!prefer) prefer = voices.find(function(v){ return /en/i.test(v.lang); });
+    if(prefer) utt.voice = prefer;
+    utt.onstart = function(){ isSpeaking = true; setStatus('speaking','SPEAKING'); setWave(true); };
+    utt.onend = utt.onerror = function(){ isSpeaking = false; setStatus('','STANDBY'); setWave(false); };
+    window.speechSynthesis.speak(utt);
+  } catch(e){}
+}
+
+function toggleTTS(){
+  ttsOn = !ttsOn;
+  var btn = document.getElementById('voiceOut');
+  if(ttsOn){ btn.classList.add('on'); }
+  else{ btn.classList.remove('on'); try{ window.speechSynthesis.cancel(); }catch(e){} setStatus('','STANDBY'); setWave(false); }
+}
+
+// ════════ VOICE INPUT ════════
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+var rec = null, listening = false;
+
+function initVoiceIn(){
+  if(!SR){ document.getElementById('micBtn').disabled=true; return; }
+  try{
+    rec = new SR();
+    rec.continuous=false; rec.interimResults=true; rec.lang='en-IN';
+    rec.onstart=function(){
+      listening=true;
+      document.getElementById('micBtn').classList.add('active','mpulse');
+      document.getElementById('lbanner').classList.add('on');
+      document.getElementById('liveText').textContent='';
+      setStatus('listening','LISTENING');
+    };
+    rec.onresult=function(e){
+      var interim='',final='';
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+        else interim+=e.results[i][0].transcript;
+      }
+      document.getElementById('liveText').textContent=final||interim;
+      if(final) document.getElementById('userInput').value=final;
+    };
+    rec.onend=function(){ stopMic(); var t=document.getElementById('userInput').value.trim(); if(t) setTimeout(sendMsg,300); };
+    rec.onerror=function(ev){
+      stopMic();
+      if(ev.error==='not-allowed') addBubble(jarvisWrap('Microphone access was denied, sir. Please allow mic permission in browser settings.'), false, '');
+      else if(ev.error!=='no-speech'&&ev.error!=='aborted') addBubble(jarvisWrap('Voice input error: '+ev.error+'. You may type instead, sir.'), false,'');
+    };
+  }catch(e){ document.getElementById('micBtn').disabled=true; }
+}
+function toggleMic(){
+  if(!rec){ document.getElementById('userInput').placeholder='Voice unavailable — please type your command'; return; }
+  if(listening) stopMic(); else try{ rec.start(); }catch(e){}
+}
+function stopMic(){
+  listening=false;
+  if(rec) try{ rec.stop(); }catch(e){}
+  document.getElementById('micBtn').classList.remove('active','mpulse');
+  document.getElementById('lbanner').classList.remove('on');
+  document.getElementById('liveText').textContent='';
+  if(!isSpeaking) setStatus('','STANDBY');
+}
+
+// ════════ NLP ════════
+function extractAmt(text){
+  var m=text.match(/(?:rs\.?\s*|inr\s*|rupees?\s*|₹\s*)?(\d[\d,]*(?:\.\d{1,2})?)(?:\s*(?:rupees?|rs\.?|inr))?/i);
+  if(!m) return null;
+  var v=parseFloat(m[1].replace(/,/g,''));
+  if(isNaN(v)||v<=0) return null;
+  if(/\b\d+\s*k\b/i.test(text)) v*=1000;
+  return v;
+}
+
+function detectIntent(raw){
+  var t=raw.toLowerCase().trim();
+  if(/\b(delete|remove|erase|undo|cancel)\b/.test(t)) return 'del';
+  if(/\b(update|change|edit|modify|correct)\b/.test(t)&&/\d/.test(t)) return 'upd';
+  if(/\b(today|daily)\b/.test(t)&&/\b(spend|spent|expense|summary|much|total|show)\b/.test(t)) return 'daily';
+  if(/\b(this week|weekly|week)\b/.test(t)&&/\b(spend|spent|expense|summary|much|show|total)\b/.test(t)) return 'weekly';
+  if(/\b(this month|monthly|month)\b/.test(t)&&/\b(spend|spent|expense|summary|much|show|total)\b/.test(t)) return 'monthly';
+  if(/\b(this year|yearly|annual|year)\b/.test(t)&&/\b(spend|spent|expense|summary|show|total)\b/.test(t)) return 'yearly';
+  if(/\b(list|show all|view all|see all)\b/.test(t)||(/\b(show|view|see)\b/.test(t)&&/\b(expense|transaction|record)\b/.test(t))) return 'list';
+  if(/\b(afford|can i buy|should i buy|can i get|is it worth)\b/.test(t)) return 'afford';
+  if(/\b(predict|forecast|next month|estimate|projection)\b/.test(t)) return 'predict';
+  if(/\b(how (to )?save|saving tip|budget tip|reduce.*expense|cut.*cost)\b/.test(t)) return 'tips';
+  if(/\b(summary|overview|breakdown|report|how much|total spent|show.*spending|monthly)\b/.test(t)) return 'monthly';
+  if(/\d/.test(t)) return 'add';
+  var allKW=[];
+  Object.keys(KWMAP).forEach(function(c){ allKW=allKW.concat(KWMAP[c]); });
+  for(var j=0;j<allKW.length;j++) if(t.indexOf(allKW[j])!==-1) return 'add_noamt';
+  return 'unknown';
+}
+
+function today(){ return new Date().toISOString().slice(0,10); }
+function fmt(n){ return Number(n).toLocaleString('en-IN'); }
+
+// ════════ HTML HELPERS ════════
+function jarvisWrap(s){ return '<span style="color:#9ab8cc;line-height:1.6">'+s+'</span>'; }
+function mkPill(label,color){ return '<span class="pill" style="background:'+color+'28;color:'+color+';border:1px solid '+color+'44;margin-left:4px">'+label+'</span>'; }
+function mkStat(label,val,color){
+  return '<div class="stat-box"><div style="font-size:10px;color:#2d5070;margin-bottom:3px;letter-spacing:.06em;text-transform:uppercase">'+label+'</div>'
+    +'<div style="font-size:14px;font-weight:800;color:'+(color||'#cbd5e1')+'">'+val+'</div></div>';
+}
+function mkTip(s){
+  return '<div style="font-size:12px;background:#060d1a;border:1px solid #1e3a5f;border-left:3px solid #00d4ff;border-radius:0 8px 8px 0;padding:9px 12px;color:#7fb3cc;line-height:1.5">'+s+'</div>';
+}
+function mkBar(cat,amt,total){
+  var pct=total>0?Math.round(amt/total*100):0;
+  return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:5px">'
+    +'<span style="width:84px;text-align:right;flex-shrink:0;color:#9ab8cc">'+(EMOJI[cat]||'')+' '+cat+'</span>'
+    +'<div class="pb"><div class="pf" style="width:'+pct+'%;background:'+(COLORS[cat]||'#4a90a4')+'"></div></div>'
+    +'<span style="width:68px;text-align:right;flex-shrink:0;color:'+(COLORS[cat]||'#94a3b8')+'">₹'+fmt(amt)+'</span>'
+    +'</div>';
+}
+
+// ════════ PENDING STATE ════════
+var _pending = null;
+
+// ════════ HANDLERS ════════
+function hAdd(text){
+  var amt=extractAmt(text);
+  if(amt && _pending){
+    var pd=_pending; _pending=null;
+    return finishAdd(amt, pd.cat, pd.desc);
+  }
+  _pending=null;
+  if(!amt) return {
+    html: jarvisWrap('I was unable to identify an amount, sir.<br>'
+      +'<span style="color:#2d5070;font-size:12px">Any format works:<br>'
+      +'<em style="color:#4a90a4">"pizza 500"</em> · <em style="color:#4a90a4">"500 uber"</em> · <em style="color:#4a90a4">"netflix 499"</em></span>'),
+    speech: 'I was unable to identify an amount, sir. Please include the amount you spent.'
+  };
+  var cat=autoCat(text);
+  var desc=text
+    .replace(/\b(i spent|i paid|i bought|i ordered|i got|spent|paid|purchased|on|for|at|from|via|today|yesterday|this morning|last night)\b/gi,' ')
+    .replace(/(?:rs\.?\s*|inr\s*|rupees?\s*|₹\s*)?\d[\d,]*(?:\.\d{1,2})?(?:\s*(?:rupees?|rs\.?|inr|k\b))?/gi,' ')
+    .replace(/\s{2,}/g,' ').trim();
+  if(!desc||desc.length<2) desc = cat!=='Other' ? cat : 'expense';
+  return finishAdd(amt, cat, desc);
+}
+
+function hAskAmt(text){
+  var cat=autoCat(text);
+  var desc=text.trim();
+  _pending={cat:cat, desc:desc};
+  return {
+    html: jarvisWrap('I\'ve identified <strong style="color:#00d4ff">'+(EMOJI[cat]||'📦')+' '+desc+'</strong>'
+      +mkPill(cat,COLORS[cat])+'<br>'
+      +'<span style="color:#2d5070;font-size:12px">What was the expenditure, sir? (e.g. 500)</span>'),
+    speech: 'How much did you spend on '+desc+', sir?'
+  };
+}
+
+function finishAdd(amt, cat, desc){
+  var exp={id:Date.now(),amount:amt,category:cat,description:desc,date:today()};
+  DB.push(exp); dbSave(DB); refreshSidebar();
+  var total=sumAll();
+  return {
+    html: '<div style="display:flex;flex-direction:column;gap:11px">'
+      +'<div style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;color:#cbd5e1">'
+      +(EMOJI[cat]||'📦')+' Transaction Logged'+mkPill(cat,COLORS[cat])+'</div>'
+      +'<div style="display:flex;gap:8px">'
+      +mkStat('Amount','₹'+fmt(amt),COLORS[cat])
+      +mkStat('Category',cat,COLORS[cat])
+      +mkStat('Date',exp.date,'#4a7a9b')
+      +'</div>'
+      +'<div style="font-size:12px;color:#4a7a9b;letter-spacing:.03em">📝 '+desc+'</div>'
+      +mkTip('Portfolio total: <strong style="color:#00d4ff">₹'+fmt(total)+'</strong> across '+DB.length+' transaction(s).')
+      +'</div>',
+    speech: fmt(amt)+' rupees for '+desc+' has been logged under '+cat+'. Portfolio total is now '+fmt(total)+' rupees.'
+  };
+}
+
+function hDel(text){
+  if(!DB.length) return {html:jarvisWrap('No transactions on record, sir.'),speech:'No transactions to delete, sir.'};
+  var t=text.toLowerCase();
+  var words=t.split(/\s+/).filter(function(w){return w.length>3&&!/delete|remove|erase|the|expense|transaction/.test(w);});
+  var found=null;
+  for(var i=0;i<words.length&&!found;i++)
+    for(var j=DB.length-1;j>=0&&!found;j--)
+      if(DB[j].description.toLowerCase().indexOf(words[i])!==-1||DB[j].category.toLowerCase().indexOf(words[i])!==-1) found=DB[j];
+  if(!found) found=DB[DB.length-1];
+  DB=DB.filter(function(e){return e.id!==found.id;});
+  dbSave(DB); refreshSidebar();
+  return {
+    html:jarvisWrap('Transaction removed: <strong style="color:#f87171">'+found.description+'</strong> — ₹'+fmt(found.amount)+' ('+found.category+')'),
+    speech:'Transaction deleted: '+found.description+', worth '+fmt(found.amount)+' rupees.'
+  };
+}
+
+function hUpd(text){
+  var amt=extractAmt(text);
+  if(!amt) return {html:jarvisWrap('Please specify the revised amount, sir.'),speech:'Please include the new amount, sir.'};
+  if(!DB.length) return {html:jarvisWrap('No transactions to modify, sir.'),speech:'No records found, sir.'};
+  var t=text.toLowerCase();
+  var words=t.split(/\s+/).filter(function(w){return w.length>3&&!/update|change|edit|modify|expense|to/.test(w);});
+  var found=null;
+  for(var i=0;i<words.length&&!found;i++)
+    for(var j=DB.length-1;j>=0&&!found;j--)
+      if(DB[j].description.toLowerCase().indexOf(words[i])!==-1) found=DB[j];
+  if(!found) found=DB[DB.length-1];
+  var old=found.amount; found.amount=amt;
+  dbSave(DB); refreshSidebar();
+  return {
+    html:jarvisWrap('Record updated: <strong style="color:#cbd5e1">'+found.description+'</strong>: ₹'+fmt(old)+' → <strong style="color:#00d4ff">₹'+fmt(amt)+'</strong>'),
+    speech:'Updated '+found.description+' from '+fmt(old)+' to '+fmt(amt)+' rupees, sir.'
+  };
+}
+
+function hSummary(period){
+  var now=new Date(), arr=DB.slice(), label='All Time';
+  if(period==='daily'){var td=today(); arr=arr.filter(function(e){return e.date===td;}); label='Today';}
+  else if(period==='weekly'){var wk=new Date(now); wk.setDate(wk.getDate()-7); arr=arr.filter(function(e){return new Date(e.date)>=wk;}); label='This Week';}
+  else if(period==='monthly'){var mo=now.getMonth(),yr=now.getFullYear(); arr=arr.filter(function(e){var d=new Date(e.date);return d.getMonth()===mo&&d.getFullYear()===yr;}); label='This Month';}
+  else if(period==='yearly'){var y=now.getFullYear(); arr=arr.filter(function(e){return new Date(e.date).getFullYear()===y;}); label='This Year';}
+  if(!arr.length) return {html:jarvisWrap('No expenditure data for <strong>'+label+'</strong>, sir.'),speech:'No data for '+label+', sir.'};
+  var total=arr.reduce(function(s,e){return s+e.amount;},0);
+  var cm={};
+  arr.forEach(function(e){cm[e.category]=(cm[e.category]||0)+e.amount;});
+  var sorted=[];for(var c in cm) sorted.push([c,cm[c]]);
+  sorted.sort(function(a,b){return b[1]-a[1];});
+  var bars='';for(var i=0;i<Math.min(sorted.length,5);i++) bars+=mkBar(sorted[i][0],sorted[i][1],total);
+  var top=sorted[0], topPct=Math.round(top[1]/total*100);
+  var saveTip=topPct>40?' Reducing it by 15% conserves ₹'+fmt(Math.round(top[1]*.15))+'.':'';
+  return {
+    html:'<div style="display:flex;flex-direction:column;gap:11px">'
+      +'<div style="display:flex;align-items:baseline;gap:10px">'
+      +'<span style="font-size:24px;font-weight:900;color:#00d4ff">₹'+fmt(total)+'</span>'
+      +'<span style="font-size:12px;color:#4a7a9b;letter-spacing:.04em">'+label.toUpperCase()+' · '+arr.length+' TRANSACTIONS</span>'
+      +'</div>'+bars
+      +mkTip('<strong style="color:#00d4ff">'+top[0]+'</strong> is your primary expenditure at '+topPct+'%.'+saveTip)
+      +'</div>',
+    speech:'Expenditure report for '+label+'. Total spent: '+fmt(total)+' rupees. Primary category is '+top[0]+' at '+topPct+' percent.'
+  };
+}
+
+function hList(){
+  if(!DB.length) return {html:jarvisWrap('No transactions on record, sir. Initiate logging with a command like: pizza 500.'),speech:'No records found, sir.'};
+  var items=DB.slice().reverse().slice(0,8);
+  var total=sumAll();
+  var rows='';
+  for(var i=0;i<items.length;i++){
+    var e=items[i];
+    rows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #0f2340;font-size:12px">'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span>'+(EMOJI[e.category]||'📦')+'</span>'
+      +'<div><div style="color:#9ab8cc">'+e.description+'</div><div style="color:#2d5070">'+e.date+'</div></div></div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +mkPill(e.category,COLORS[e.category]||'#4a90a4')
+      +'<span style="font-weight:700;color:#00d4ff">₹'+fmt(e.amount)+'</span>'
+      +'</div></div>';
+  }
+  return {
+    html:'<div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#2d5070;margin-bottom:8px;letter-spacing:.06em">'
+      +'<span>TRANSACTION LOG</span><span>LAST '+items.length+' OF '+DB.length+'</span></div>'
+      +rows
+      +'<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:900;padding-top:10px;color:#9ab8cc">'
+      +'<span>TOTAL</span><span style="color:#00d4ff">₹'+fmt(total)+'</span></div></div>',
+    speech:'Displaying '+items.length+' of '+DB.length+' transactions. Total expenditure: '+fmt(total)+' rupees, sir.'
+  };
+}
+
+function hAfford(text){
+  var amt=extractAmt(text);
+  if(!amt) return {html:jarvisWrap('Please specify the target amount, sir. E.g. "Can I afford a 50000 laptop?"'),speech:'Please include the amount, sir.'};
+  var now=new Date(),mo=now.getMonth(),yr=now.getFullYear();
+  var monthSpent=DB.filter(function(e){var d=new Date(e.date);return d.getMonth()===mo&&d.getFullYear()===yr;}).reduce(function(s,e){return s+e.amount;},0);
+  var months=moCount(), avgM=DB.length?sumAll()/months:0;
+  var estSave=Math.max(0,avgM*.3);
+  var canAfford=estSave*3>=amt;
+  var moNeed=estSave>0?Math.ceil(amt/estSave):'?';
+  var im=text.match(/\b(laptop|phone|car|bike|tv|refrigerator|ac|watch|camera|tablet|macbook|iphone|ipad|gadget|scooter|ps5|playstation)\b/i);
+  var item=im?im[1]:'purchase';
+  return {
+    html:'<div style="display:flex;flex-direction:column;gap:11px">'
+      +'<div style="display:flex;align-items:center;gap:12px">'
+      +'<span style="font-size:30px">'+(canAfford?'✅':'⚠️')+'</span>'
+      +'<div><div style="font-weight:700;font-size:16px;color:#cbd5e1">'+(canAfford?'Acquisition Feasible':'Requires Planning')+'</div>'
+      +'<div style="font-size:12px;color:#4a7a9b;letter-spacing:.04em">₹'+fmt(amt)+' · '+item.toUpperCase()+'</div></div></div>'
+      +'<div style="display:flex;gap:8px">'
+      +mkStat('This Month','₹'+fmt(monthSpent),'#f97316')
+      +mkStat('Est. Monthly Savings','₹'+fmt(Math.round(estSave)),'#22c55e')
+      +'</div>'
+      +mkTip(canAfford
+        ?'At current savings rate, acquisition possible in <strong style="color:#00d4ff">'+moNeed+' month(s)</strong>, sir.'
+        :'This requires <strong style="color:#f87171">'+moNeed+' month(s)</strong> of savings. I recommend a phased budget plan, sir.')
+      +'</div>',
+    speech: canAfford
+      ?'Acquisition is feasible, sir. At your current savings rate, the '+item+' can be purchased in '+moNeed+' months.'
+      :'I would advise caution, sir. This purchase requires approximately '+moNeed+' months of savings.'
+  };
+}
+
+function hPredict(){
+  if(DB.length<2) return {html:jarvisWrap('Insufficient data for projection, sir. Please log more transactions.'),speech:'Insufficient data for prediction, sir.'};
+  var months=moCount(), avg=sumAll()/months;
+  var cm={};DB.forEach(function(e){cm[e.category]=(cm[e.category]||0)+e.amount/months;});
+  var sorted=[];for(var c in cm) sorted.push([c,cm[c]]);sorted.sort(function(a,b){return b[1]-a[1];});
+  var rows='';for(var i=0;i<Math.min(sorted.length,3);i++){
+    rows+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:#9ab8cc;border-bottom:1px solid #0f2340">'
+      +'<span>'+(EMOJI[sorted[i][0]]||'')+' '+sorted[i][0]+'</span>'
+      +'<span style="color:'+(COLORS[sorted[i][0]]||'#4a90a4')+'">≈ ₹'+fmt(Math.round(sorted[i][1]))+'</span></div>';
+  }
+  return {
+    html:'<div style="display:flex;flex-direction:column;gap:11px">'
+      +'<div style="font-size:13px;font-weight:700;color:#4a7a9b;letter-spacing:.08em">📈 EXPENDITURE FORECAST</div>'
+      +'<div style="font-size:28px;font-weight:900;color:#00d4ff;letter-spacing:.02em">≈ ₹'+fmt(Math.round(avg))+'</div>'
+      +'<div style="font-size:11px;color:#2d5070;letter-spacing:.06em">PROJECTION BASED ON '+DB.length+' RECORDS · '+months+' MONTH(S)</div>'
+      +rows+mkTip('A 10% reduction conserves ≈ <strong style="color:#00d4ff">₹'+fmt(Math.round(avg*.1))+'</strong> per month, sir.')
+      +'</div>',
+    speech:'Expenditure forecast for next month is approximately '+fmt(Math.round(avg))+' rupees, sir. Based on '+DB.length+' recorded transactions.'
+  };
+}
+
+function hTips(){
+  var cm={};DB.forEach(function(e){cm[e.category]=(cm[e.category]||0)+e.amount;});
+  var total=sumAll();
+  var sorted=[];for(var c in cm) sorted.push([c,cm[c]]);sorted.sort(function(a,b){return b[1]-a[1];});
+  var specific=sorted.length
+    ?'Primary expenditure: <strong style="color:#00d4ff">'+sorted[0][0]+'</strong> (₹'+fmt(sorted[0][1])+'). A 20% reduction saves ₹'+fmt(Math.round(sorted[0][1]*.2))+', sir.'
+    :'Log transactions to receive personalised analysis, sir.';
+  var tips=[
+    '📌 <strong style="color:#9ab8cc">50/30/20 Allocation</strong>: 50% essentials, 30% discretionary, 20% savings.',
+    '🔁 Automate savings transfers on paycheck receipt, sir.',
+    '🛒 Implement a <strong style="color:#9ab8cc">48-hour deliberation protocol</strong> for non-essential purchases.',
+    '📱 Audit recurring subscriptions monthly — eliminate redundant ones.',
+    '🍱 Meal preparation reduces food expenditure by up to 30%, sir.'
+  ];
+  return {
+    html:'<div style="display:flex;flex-direction:column;gap:11px">'
+      +'<div style="font-size:13px;font-weight:700;color:#4a7a9b;letter-spacing:.08em">💰 FINANCIAL ANALYSIS</div>'
+      +(total>0?mkTip(specific):'')
+      +tips.map(function(t){return '<div style="font-size:13px;color:#9ab8cc;padding:2px 0">'+t+'</div>';}).join('')
+      +'</div>',
+    speech: sorted.length
+      ?'Primary expenditure is '+sorted[0][0]+'. I recommend reducing it by 20 percent, conserving '+fmt(Math.round(sorted[0][1]*.2))+' rupees. Additionally, the 50-30-20 allocation rule is advisable, sir.'
+      :'I recommend the 50-30-20 budgeting rule, automating savings, and auditing subscriptions regularly, sir.'
+  };
+}
+
+function hUnknown(){
+  return {
+    html:'<div style="display:flex;flex-direction:column;gap:9px">'
+      +'<div style="font-size:13px;font-weight:700;color:#4a7a9b;letter-spacing:.06em">COMMAND NOT RECOGNISED, SIR</div>'
+      +'<div style="font-size:12px;color:#4a7a9b;line-height:2.2">'
+      +'⚡ <em style="color:#6a9ab8">"pizza 500"</em> or <em style="color:#6a9ab8">"500 uber"</em> — log expense<br>'
+      +'📊 <em style="color:#6a9ab8">"show monthly summary"</em> — expenditure report<br>'
+      +'📋 <em style="color:#6a9ab8">"list all expenses"</em> — transaction log<br>'
+      +'🔮 <em style="color:#6a9ab8">"predict next month"</em> — forecast<br>'
+      +'✅ <em style="color:#6a9ab8">"can I afford a 50000 laptop?"</em> — acquisition analysis<br>'
+      +'💡 <em style="color:#6a9ab8">"how can I save money?"</em> — financial advisory'
+      +'</div></div>',
+    speech:'Command not recognised, sir. You may say things like: pizza 500, show monthly summary, or how can I save money.'
+  };
+}
+
+// ════════ ROUTER ════════
+function route(text){
+  var intent=detectIntent(text);
+  if(intent==='add')      return hAdd(text);
+  if(intent==='add_noamt')return hAskAmt(text);
+  if(intent==='del')      return hDel(text);
+  if(intent==='upd')      return hUpd(text);
+  if(intent==='daily')    return hSummary('daily');
+  if(intent==='weekly')   return hSummary('weekly');
+  if(intent==='monthly')  return hSummary('monthly');
+  if(intent==='yearly')   return hSummary('yearly');
+  if(intent==='list')     return hList();
+  if(intent==='afford')   return hAfford(text);
+  if(intent==='predict')  return hPredict();
+  if(intent==='tips')     return hTips();
+  return hUnknown();
+}
+
+// ════════ DATA UTILS ════════
+function sumAll(){ return DB.reduce(function(s,e){return s+e.amount;},0); }
+function moCount(){
+  if(!DB.length) return 1;
+  var ts=DB.map(function(e){return new Date(e.date).getTime();});
+  var mn=new Date(Math.min.apply(null,ts)),mx=new Date(Math.max.apply(null,ts));
+  return Math.max(1,(mx.getFullYear()-mn.getFullYear())*12+mx.getMonth()-mn.getMonth()+1);
+}
+function refreshSidebar(){
+  var total=sumAll();
+  document.getElementById('sb-total').textContent='₹'+fmt(total);
+  document.getElementById('sb-count').textContent=DB.length+' transaction'+(DB.length===1?'':'s');
+  var cm={};DB.forEach(function(e){cm[e.category]=(cm[e.category]||0)+e.amount;});
+  var el=document.getElementById('sb-cats');
+  var cats=[];for(var c in cm) cats.push([c,cm[c]]);
+  if(!cats.length){el.innerHTML='<span style="color:#1e3a5f;font-style:italic">No data available</span>';return;}
+  cats.sort(function(a,b){return b[1]-a[1];});
+  el.innerHTML=cats.map(function(p){
+    return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid #0d1f38">'
+      +'<span style="color:#6a9ab8">'+(EMOJI[p[0]]||'')+' '+p[0]+'</span>'
+      +'<span style="font-weight:700;color:'+(COLORS[p[0]]||'#4a90a4')+'">₹'+fmt(p[1])+'</span></div>';
+  }).join('');
+}
+
+// ════════ CHAT ENGINE ════════
+function addBubble(innerHtml, isUser, speechText){
+  var wrap=document.createElement('div');
+  wrap.style.display='flex';
+  wrap.style.justifyContent=isUser?'flex-end':'flex-start';
+  var bubble=document.createElement('div');
+  bubble.className=isUser?'ub':'bb';
+  bubble.innerHTML=innerHtml;
+  wrap.appendChild(bubble);
+  var msgs=document.getElementById('messages');
+  msgs.appendChild(wrap);
+  msgs.scrollTop=msgs.scrollHeight;
+  if(!isUser && speechText!==undefined && speechText!=='') speak(speechText);
+}
+function showTyping(){
+  var w=document.createElement('div');
+  w.id='typing';w.style.display='flex';
+  w.innerHTML='<div class="bb" style="padding:14px 18px"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+  var m=document.getElementById('messages');m.appendChild(w);m.scrollTop=m.scrollHeight;
+}
+function hideTyping(){var e=document.getElementById('typing');if(e)e.parentNode.removeChild(e);}
+
+function sendMsg(){
+  var inp=document.getElementById('userInput');
+  var text=inp.value.trim();
+  if(!text)return;
+  inp.value='';inp.style.height='auto';
+  document.getElementById('sendBtn').disabled=true;
+  addBubble(text,true);
+  showTyping();
+  setStatus('','PROCESSING');
+  setTimeout(function(){
+    hideTyping();
+    var result={html:'',speech:''};
+    try{result=route(text);}catch(err){result={html:jarvisWrap('System error: '+err.message),speech:'I encountered an error, sir. '+err.message};}
+    addBubble(result.html,false,result.speech);
+    document.getElementById('sendBtn').disabled=false;
+    inp.focus();
+  }, 400+Math.floor(Math.random()*200));
+}
+function qi(text){document.getElementById('userInput').value=text;sendMsg();}
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function grow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+// ════════ CLAP TO OPEN ════════
+var clapCtx=null, clapStream=null, clapRAF=null, opened=false, lastClap=0, avgLvl=0;
+
+function armClap(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    document.getElementById('standbyMsg').textContent='MIC UNAVAILABLE — TAP "SKIP"'; return;
+  }
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})
+  .then(function(stream){
+    clapStream=stream;
+    clapCtx=new (window.AudioContext||window.webkitAudioContext)();
+    var src=clapCtx.createMediaStreamSource(stream);
+    var an=clapCtx.createAnalyser(); an.fftSize=1024;
+    src.connect(an);
+    var buf=new Uint8Array(an.fftSize);
+    document.getElementById('armBtn').style.display='none';
+    document.getElementById('standbyMsg').textContent='LISTENING FOR A CLAP...';
+    // unlock speech with the user's tap
+    try{ var u=new SpeechSynthesisUtterance(' '); u.volume=0; window.speechSynthesis.speak(u);}catch(e){}
+    (function loop(){
+      if(opened) return;
+      an.getByteTimeDomainData(buf);
+      var peak=0;
+      for(var i=0;i<buf.length;i++){ var v=Math.abs(buf[i]-128)/128; if(v>peak) peak=v; }
+      var now=Date.now();
+      // clap = sudden loud spike well above recent background level
+      if(peak>0.4 && peak>avgLvl*3 && now-lastClap>800){ lastClap=now; openJarvis(); return; }
+      avgLvl=avgLvl*0.95+peak*0.05;
+      clapRAF=requestAnimationFrame(loop);
+    })();
+  })
+  .catch(function(){
+    document.getElementById('standbyMsg').textContent='MIC DENIED — TAP "SKIP" TO OPEN';
+  });
+}
+
+function openJarvis(){
+  if(opened) return; opened=true;
+  if(clapRAF) cancelAnimationFrame(clapRAF);
+  if(clapStream) clapStream.getTracks().forEach(function(t){t.stop();});
+  if(clapCtx) try{clapCtx.close();}catch(e){}
+  var s=document.getElementById('standby');
+  s.classList.add('off');
+  setTimeout(function(){ s.style.display='none'; },900);
+  runBoot();
+}
+
+// ════════ BOOT ════════
+function runBoot(){
+  var h=new Date().getHours();
+  var greet=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+  var micNote=SR
+    ?'🎙️ Voice interface online. Click the mic to speak your command.'
+    :'⌨️ Voice unavailable in this environment. Text input is active, sir.';
+  addBubble(
+    '<div style="display:flex;flex-direction:column;gap:10px">'
+    +'<div style="font-size:17px;font-weight:900;letter-spacing:.06em;color:#cbd5e1">'+greet+', sir. All systems online.</div>'
+    +'<div style="font-size:12px;color:#4a7a9b;letter-spacing:.03em">'+micNote+'</div>'
+    +'<div style="font-size:13px;color:#4a7a9b;line-height:2.2">'
+    +'⚡ <em style="color:#6a9ab8">"pizza 500"</em> · <em style="color:#6a9ab8">"500 uber"</em> · <em style="color:#6a9ab8">"netflix 499"</em> — log expense<br>'
+    +'📊 <em style="color:#6a9ab8">"monthly summary"</em> — expenditure report<br>'
+    +'✅ <em style="color:#6a9ab8">"afford 50000 laptop"</em> — acquisition analysis<br>'
+    +'🔮 <em style="color:#6a9ab8">"predict next month"</em> — forecast<br>'
+    +'💡 <em style="color:#6a9ab8">"save money"</em> — financial advisory'
+    +'</div>'
+    +'<div style="font-size:12px;color:#2d5070;letter-spacing:.04em;border-top:1px solid #0f2340;padding-top:8px">AWAITING YOUR COMMAND, SIR.</div>'
+    +'</div>',
+    false,
+    greet+', sir. J.A.R.V.I.S. Financial Intelligence System is online and ready. How may I assist you today?'
+  );
+}
+
+(function(){
+  refreshSidebar();
+  initVoiceIn();
+  if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=function(){};
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').catch(function(err) {
+      console.log('Service worker registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
